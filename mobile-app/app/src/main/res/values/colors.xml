@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="emerald_500">#10B981</color>
+    <color name="emerald_600">#059669</color>
+    <color name="teal_500">#14B8A6</color>
+    <color name="dark_bg">#090D16</color>
+    <color name="glass_card">#0F172A</color>
+    <color name="white">#FFFFFF</color>
+    <color name="slate_400">#94A3B8</color>
+</resources>

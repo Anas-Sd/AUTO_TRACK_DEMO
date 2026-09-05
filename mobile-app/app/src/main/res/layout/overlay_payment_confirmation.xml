@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@drawable/bg_glass_card"
+    android:elevation="16dp">
+
+    <!-- Header Badge -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="⚡ Auto Track Interceptor"
+            android:textColor="#10B981"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvOverlaySource"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="GPay"
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Amount & Merchant Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/tvOverlayAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₹450.00"
+            android:textColor="#FFFFFF"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvOverlayMerchant"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Paid to Starbucks Coffee"
+            android:textColor="#CBD5E1"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Notes Input -->
+    <EditText
+        android:id="@+id/etOverlayNotes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#090D16"
+        android:hint="Add notes / recipient..."
+        android:textColor="#FFFFFF"
+        android:textColorHint="#64748B"
+        android:textSize="13sp"
+        android:padding="10dp" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="14dp">
+
+        <Button
+            android:id="@+id/btnOverlaySnooze"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Snooze (2 min)"
+            android:textColor="#94A3B8"
+            android:backgroundTint="#1E293B"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnOverlayConfirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.5"
+            android:text="Confirm &amp; Save"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#10B981"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>
