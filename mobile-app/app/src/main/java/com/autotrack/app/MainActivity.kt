@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
         val existingVaultCode = sharedPref.getString("VAULT_CODE", null)
 
-        if (existingVaultCode == null) {
+        if (existingVaultCode.isNullOrEmpty()) {
             // Generate 6-digit numeric Vault Code for easy web sync
             val randomNum = 100000 + Random().nextInt(900000)
             val generatedCode = "SP-$randomNum"
@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val savedName = sharedPref.getString("USER_NAME", "")
-        if (!savedName.isNull_or_empty()) {
+        if (!savedName.isNullOrEmpty()) {
             etUserName.setText(savedName)
             // Ensure Supabase table has this session registered
             syncVaultSessionToSupabase()
@@ -99,8 +99,9 @@ class MainActivity : AppCompatActivity() {
         val vaultCode = sharedPref.getString("VAULT_CODE", null)
         val userName = sharedPref.getString("USER_NAME", "User") ?: "User"
 
-        if (!vaultCode.isNull_or_empty()) {
-            val formattedCode = if (vaultCode.startsWith("SP-")) vaultCode else "SP-$vaultCode"
+        if (!vaultCode.isNullOrEmpty()) {
+            val nonNullCode: String = vaultCode
+            val formattedCode = if (nonNullCode.startsWith("SP-")) nonNullCode else "SP-$nonNullCode"
             CoroutineScope(Dispatchers.IO).launch {
                 SupabaseSyncEngine.registerVaultSession(formattedCode, userName)
             }
@@ -138,6 +139,4 @@ class MainActivity : AppCompatActivity() {
 
         tvStatus.text = "Hello $userName!\n🔑 Web Vault Sync Code: $vaultCode\n\n$engineStatus\n\n• Floating Card Overlay: ${if (hasOverlay) "GRANTED ✅" else "PENDING ❌"}\n• Payment Interceptor: ${if (hasNotification) "ENABLED ✅" else "DISABLED ❌"}"
     }
-
-    private fun String?.isNull_or_empty(): Boolean = this == null || this.isEmpty()
 }
