@@ -185,7 +185,7 @@ export default function App() {
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <>
-            <StatsCards transactions={transactions} />
+            <StatsCards transactions={transactions} categories={categories} />
             <AnalyticsCharts transactions={transactions} categories={categories} />
           </>
         )}

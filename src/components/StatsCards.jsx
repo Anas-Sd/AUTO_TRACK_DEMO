@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Target, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import { formatCurrency } from '../lib/storage';
 
-export default function StatsCards({ transactions, categories }) {
+export default function StatsCards({ transactions = [], categories = [] }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const totalIncome = transactions
