@@ -7,6 +7,28 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const handleInputChange = (e) => {
+    let raw = e.target.value.toUpperCase();
+    if (errorMsg) setErrorMsg('');
+
+    // Strip non-alphanumeric characters
+    let cleaned = raw.replace(/[^A-Z0-9]/g, '');
+
+    // Strip leading "SP" if present
+    if (cleaned.startsWith('SP')) {
+      cleaned = cleaned.substring(2);
+    }
+
+    // Retain only digits (up to 6 max)
+    cleaned = cleaned.replace(/\D/g, '').slice(0, 6);
+
+    if (cleaned.length > 0) {
+      setInputCode(`SP-${cleaned}`);
+    } else {
+      setInputCode('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -17,14 +39,11 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
       return;
     }
 
-    let cleaned = raw.toUpperCase().replace(/\s+/g, '');
-    if (cleaned.startsWith('SP-')) {
-      cleaned = cleaned.substring(3);
-    }
+    let cleaned = raw.toUpperCase().replace(/[^0-9]/g, '');
 
-    // Validate 6-digit numeric Vault Code
-    if (!/^\d{6}$/.test(cleaned)) {
-      setErrorMsg('Invalid Vault Code! Please enter the exact 6-digit numeric code displayed in your Auto Track mobile app (e.g. 593812).');
+    // Validate exactly 6-digit numeric Vault Code
+    if (cleaned.length !== 6) {
+      setErrorMsg('Invalid Vault Code! Please enter all 6 numeric digits displayed in your Auto Track phone app.');
       return;
     }
 
@@ -57,7 +76,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             Connect Your Mobile Vault
           </h1>
           <p className="text-xs text-slate-400">
-            No password needed. Enter the 6-digit Vault Code shown in your phone app.
+            No password needed. Type the 6-digit code shown in your phone app.
           </p>
         </div>
 
@@ -73,7 +92,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Enter the code below to unlock your dashboard.</span>
+            <span>Type the digits below — <strong>SP-</strong> is added automatically!</span>
           </div>
         </div>
 
@@ -93,14 +112,14 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
               type="text"
               required
               maxLength={9}
-              placeholder="e.g. 623440"
+              placeholder="e.g. SP-623440"
               value={inputCode}
-              onChange={(e) => {
-                setInputCode(e.target.value);
-                if (errorMsg) setErrorMsg('');
-              }}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-lg focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600"
+              onChange={handleInputChange}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-xl focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600 shadow-inner"
             />
+            <p className="text-[11px] text-slate-500 text-center mt-1">
+              Simply type your 6 digits (e.g. <span className="font-mono text-emerald-400">623440</span>)
+            </p>
           </div>
 
           <button
