@@ -1,11 +1,13 @@
 package com.autotrack.app
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.TextUtils
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -36,10 +38,15 @@ class MainActivity : AppCompatActivity() {
         val existingVaultCode = sharedPref.getString("VAULT_CODE", null)
 
         if (existingVaultCode == null) {
-            // Generate Unique Vault Code once
+            // Generate 6-digit numeric Vault Code for easy web sync
             val randomNum = 100000 + Random().nextInt(900000)
-            val generatedCode = "SP-$randomNum"
+            val generatedCode = "$randomNum"
             sharedPref.edit().putString("VAULT_CODE", generatedCode).apply()
+        }
+
+        val savedName = sharedPref.getString("USER_NAME", "")
+        if (!savedName.isNull_or_empty()) {
+            etUserName.setText(savedName)
         }
 
         btnStartOnboarding.setOnClickListener {
@@ -48,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter your name", Toast.LENGTH_SHORT).show()
             } else {
                 sharedPref.edit().putString("USER_NAME", userName).apply()
-                Toast.makeText(this, "Welcome $userName! Setup completed.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Welcome $userName! Vault Code generated.", Toast.LENGTH_LONG).show()
                 updateStatus()
             }
         }
@@ -66,8 +73,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnPermissionNotification.setOnClickListener {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            startActivity(intent)
+            if (isNotificationListenerGranted()) {
+                Toast.makeText(this, "Notification Listener already enabled!", Toast.LENGTH_SHORT).show()
+            } else {
+                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                startActivity(intent)
+            }
         }
     }
 
@@ -76,11 +87,36 @@ class MainActivity : AppCompatActivity() {
         updateStatus()
     }
 
+    private fun isNotificationListenerGranted(): Boolean {
+        val packageName = packageName
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        if (!TextUtils.isEmpty(flat)) {
+            val names = flat.split(":")
+            for (name in names) {
+                val cn = ComponentName.unflattenFromString(name)
+                if (cn != null && TextUtils.equals(packageName, cn.packageName)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private fun updateStatus() {
         val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(this) else true
+        val hasNotification = isNotificationListenerGranted()
         val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
         val userName = sharedPref.getString("USER_NAME", "User") ?: "User"
+        val vaultCode = sharedPref.getString("VAULT_CODE", "Not Generated") ?: "Not Generated"
 
-        tvStatus.text = "Hello $userName!\nOverlay Permission: ${if (hasOverlay) "GRANTED ✅" else "PENDING ❌"}"
+        val engineStatus = if (hasOverlay && hasNotification) {
+            "⚡ STATUS: ACTIVE & RUNNING 🟢\nReady to intercept UPI payments!"
+        } else {
+            "⚠️ STATUS: ACTION REQUIRED 🔴\nPlease grant both permissions below."
+        }
+
+        tvStatus.text = "Hello $userName!\n🔑 Web Vault Sync Code: $vaultCode\n\n$engineStatus\n\n• Floating Card Overlay: ${if (hasOverlay) "GRANTED ✅" else "PENDING ❌"}\n• Payment Interceptor: ${if (hasNotification) "ENABLED ✅" else "DISABLED ❌"}"
     }
+
+    private fun String?.isNull_or_empty(): Boolean = this == null || this.isEmpty()
 }
