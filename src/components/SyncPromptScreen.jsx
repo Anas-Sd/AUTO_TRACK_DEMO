@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Key, AlertCircle, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
-import { registerVaultSessionInCloud } from '../lib/supabase';
+import { verifyVaultSessionInCloud, registerVaultSessionInCloud } from '../lib/supabase';
 
 export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [inputCode, setInputCode] = useState('');
@@ -11,21 +11,25 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     let raw = e.target.value.toUpperCase();
     if (errorMsg) setErrorMsg('');
 
-    // Strip non-alphanumeric characters
-    let cleaned = raw.replace(/[^A-Z0-9]/g, '');
+    // Extract letters and numbers separately
+    let letters = raw.replace(/[^A-Z]/g, '').slice(0, 2);
+    let digits = raw.replace(/[^0-9]/g, '').slice(0, 6);
 
-    // Strip leading "SP" if present
-    if (cleaned.startsWith('SP')) {
-      cleaned = cleaned.substring(2);
+    // If user started typing digits directly without letters, default letters to "SP"
+    if (letters.length === 0 && digits.length > 0) {
+      letters = 'SP';
     }
 
-    // Retain only digits (up to 6 max)
-    cleaned = cleaned.replace(/\D/g, '').slice(0, 6);
-
-    if (cleaned.length > 0) {
-      setInputCode(`SP-${cleaned}`);
-    } else {
+    if (letters.length === 0) {
       setInputCode('');
+    } else if (letters.length === 1) {
+      setInputCode(letters);
+    } else if (letters.length === 2) {
+      if (digits.length > 0) {
+        setInputCode(`${letters}-${digits}`);
+      } else {
+        setInputCode(`${letters}-`);
+      }
     }
   };
 
@@ -35,26 +39,35 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     const raw = inputCode.trim();
 
     if (!raw) {
-      setErrorMsg('Please enter your phone\'s 6-digit Vault Code.');
+      setErrorMsg('Please enter your 8-character Vault Code (e.g. SP-623440).');
       return;
     }
 
-    let cleaned = raw.toUpperCase().replace(/[^0-9]/g, '');
-
-    // Validate exactly 6-digit numeric Vault Code
-    if (cleaned.length !== 6) {
-      setErrorMsg('Invalid Vault Code! Please enter all 6 numeric digits displayed in your Auto Track phone app.');
+    // Format validation: Exactly 2 letters, hyphen, 6 digits
+    const pattern = /^[A-Z]{2}-\d{6}$/;
+    if (!pattern.test(raw)) {
+      setErrorMsg('Invalid Vault Code format! Code must be 2 letters followed by a hyphen and 6 numbers (e.g. SP-623440).');
       return;
     }
 
-    const formattedCode = `SP-${cleaned}`;
     setIsSyncing(true);
-    
-    // Sync session to Supabase database
-    await registerVaultSessionInCloud(formattedCode, 'Syed Anas');
+
+    // Strict Database Check: Only vault codes existing in vault_sessions database are allowed!
+    const { exists } = await verifyVaultSessionInCloud(raw);
+
+    if (!exists && raw !== 'SP-894201') {
+      setIsSyncing(false);
+      setErrorMsg(`Vault Code "${raw}" was not found in the database! Please open your Auto Track mobile app to generate & register your vault code first.`);
+      return;
+    }
+
+    // If demo code or registered code, register/update session and unlock dashboard
+    if (raw === 'SP-894201') {
+      await registerVaultSessionInCloud('SP-894201', 'Demo User');
+    }
+
     setIsSyncing(false);
-    
-    onPairCode(formattedCode);
+    onPairCode(raw);
   };
 
   return (
@@ -76,7 +89,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             Connect Your Mobile Vault
           </h1>
           <p className="text-xs text-slate-400">
-            No password needed. Type the 6-digit code shown in your phone app.
+            Enter your registered Vault Code to access your private encrypted ledger.
           </p>
         </div>
 
@@ -88,26 +101,26 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">2</span>
-            <span>Locate your <strong>🔑 6-Digit Web Vault Sync Code</strong>.</span>
+            <span>Locate your <strong>🔑 8-Character Vault Code</strong> (e.g. SP-623440).</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Type the digits below — <strong>SP-</strong> is added automatically!</span>
+            <span>Type 2 letters (e.g. <strong>SP</strong>) ➔ hyphen is added automatically!</span>
           </div>
         </div>
 
         {/* Error Alert Box */}
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2 text-rose-400 text-xs animate-shake">
+          <div className="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-rose-400 text-xs animate-shake">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
-            <span>{errorMsg}</span>
+            <span className="leading-relaxed font-medium">{errorMsg}</span>
           </div>
         )}
 
         {/* Pairing Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Your Phone's Web Sync Code</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Your Registered Web Vault Code</label>
             <input
               type="text"
               required
@@ -117,8 +130,8 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
               onChange={handleInputChange}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-xl focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600 shadow-inner"
             />
-            <p className="text-[11px] text-slate-500 text-center mt-1">
-              Simply type your 6 digits (e.g. <span className="font-mono text-emerald-400">623440</span>)
+            <p className="text-[11px] text-slate-500 text-center mt-1.5">
+              Format: <span className="font-mono text-emerald-400 font-bold">2 Letters</span> + <span className="font-mono text-slate-400">-</span> + <span className="font-mono text-emerald-400 font-bold">6 Digits</span>
             </p>
           </div>
 
@@ -130,11 +143,11 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             {isSyncing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Connecting to Cloud Vault...</span>
+                <span>Verifying Database Vault...</span>
               </>
             ) : (
               <>
-                <span>Unlock My Financial Dashboard</span>
+                <span>Verify & Unlock Dashboard</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -144,7 +157,10 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
         {/* Demo Mode Action */}
         <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
           <button
-            onClick={onUseDemo}
+            onClick={() => {
+              setInputCode('SP-894201');
+              onUseDemo();
+            }}
             className="text-xs text-slate-400 hover:text-emerald-400 font-medium transition-colors"
           >
             Don't have the phone app yet? <span className="underline">Explore Demo Mode (SP-894201)</span>

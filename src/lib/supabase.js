@@ -7,6 +7,9 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+/**
+ * Registers or updates a Vault Session in Supabase vault_sessions table
+ */
 export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') => {
   try {
     const encryptedName = encryptPayload(userName, vaultCode);
@@ -25,6 +28,33 @@ export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') 
   } catch (err) {
     console.error('Failed to sync vault session to Supabase:', err);
     return null;
+  }
+};
+
+/**
+ * Checks if a Vault Session exists in Supabase vault_sessions table
+ */
+export const verifyVaultSessionInCloud = async (vaultCode) => {
+  try {
+    const { data, error } = await supabase
+      .from('vault_sessions')
+      .select('vault_code, user_name')
+      .eq('vault_code', vaultCode)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error verifying vault session:', error);
+      return { exists: false, error: error.message };
+    }
+
+    if (data) {
+      return { exists: true, session: data };
+    } else {
+      return { exists: false };
+    }
+  } catch (err) {
+    console.error('Failed to query Supabase vault session:', err);
+    return { exists: false, error: err.message };
   }
 };
 
