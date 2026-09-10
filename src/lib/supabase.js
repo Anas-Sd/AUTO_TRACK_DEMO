@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { decryptPayload, encryptPayload } from './crypto';
 
 // Supabase Environment Credentials
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kdiefrqgmoahpfcstbzc.supabase.co';
@@ -8,10 +9,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') => {
   try {
+    const encryptedName = encryptPayload(userName, vaultCode);
     const { data, error } = await supabase
       .from('vault_sessions')
       .upsert(
-        { vault_code: vaultCode, user_name: userName, last_active: new Date().toISOString() },
+        { vault_code: vaultCode, user_name: encryptedName, last_active: new Date().toISOString() },
         { onConflict: 'vault_code' }
       )
       .select();
@@ -23,5 +25,38 @@ export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') 
   } catch (err) {
     console.error('Failed to sync vault session to Supabase:', err);
     return null;
+  }
+};
+
+/**
+ * Safely decrypts a transaction object retrieved from Supabase
+ */
+export const decryptTransactionRecord = (tx, vaultCode) => {
+  if (!tx) return tx;
+  return {
+    ...tx,
+    title: decryptPayload(tx.title, vaultCode) || tx.title,
+    merchant: decryptPayload(tx.merchant, vaultCode) || tx.merchant,
+    notes: decryptPayload(tx.notes, vaultCode) || tx.notes
+  };
+};
+
+/**
+ * Fetches all transactions for a specific Vault Code and decrypts them locally
+ */
+export const fetchCloudTransactions = async (vaultCode) => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('vault_code', vaultCode)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map((tx) => decryptTransactionRecord(tx, vaultCode));
+  } catch (err) {
+    console.error('Error fetching cloud transactions:', err);
+    return [];
   }
 };

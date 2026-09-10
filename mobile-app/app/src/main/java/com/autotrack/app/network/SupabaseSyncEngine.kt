@@ -1,5 +1,6 @@
 package com.autotrack.app.network
 
+import com.autotrack.app.util.CryptoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -25,7 +26,7 @@ object SupabaseSyncEngine {
         try {
             val jsonPayload = JSONObject().apply {
                 put("vault_code", vaultCode)
-                put("user_name", userName)
+                put("user_name", CryptoUtils.encryptAES(userName, vaultCode))
             }.toString()
 
             val request = Request.Builder()
@@ -59,18 +60,23 @@ object SupabaseSyncEngine {
         notes: String
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            // AES-256 Client-Side Encryption before cloud transmission
+            val encryptedTitle = CryptoUtils.encryptAES(title, vaultCode)
+            val encryptedMerchant = CryptoUtils.encryptAES(merchant, vaultCode)
+            val encryptedNotes = if (notes.isNotEmpty()) CryptoUtils.encryptAES(notes, vaultCode) else ""
+
             val jsonPayload = JSONObject().apply {
                 put("id", id)
                 put("vault_code", vaultCode)
-                put("title", title)
+                put("title", encryptedTitle)
                 put("amount", amount)
                 put("type", "expense")
                 put("category", category)
                 put("date", date)
                 put("time", time)
                 put("payment_method", paymentMethod)
-                put("merchant", merchant)
-                put("notes", notes)
+                put("merchant", encryptedMerchant)
+                put("notes", encryptedNotes)
                 put("is_auto_captured", true)
             }.toString()
 
