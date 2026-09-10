@@ -7,6 +7,21 @@ import android.util.Base64
 
 object CryptoUtils {
 
+    /**
+     * Hashes raw Vault Code using SHA-256 to create an anonymized Cloud Vault ID.
+     * The Database Admin will only see this 64-char hex hash, NEVER the raw Vault Code!
+     */
+    fun hashVaultCode(vaultCode: String): String {
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(vaultCode.toByteArray(Charsets.UTF_8))
+            hashBytes.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            vaultCode
+        }
+    }
+
     private fun deriveKey(secret: String): SecretKeySpec {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(secret.toByteArray(Charsets.UTF_8))

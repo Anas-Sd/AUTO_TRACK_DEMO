@@ -24,8 +24,9 @@ object SupabaseSyncEngine {
 
     suspend fun registerVaultSession(vaultCode: String, userName: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            val vaultId = CryptoUtils.hashVaultCode(vaultCode)
             val jsonPayload = JSONObject().apply {
-                put("vault_code", vaultCode)
+                put("vault_code", vaultId)
                 put("user_name", CryptoUtils.encryptAES(userName, vaultCode))
             }.toString()
 
@@ -60,6 +61,9 @@ object SupabaseSyncEngine {
         notes: String
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            // SHA-256 Vault ID Hashing so database admins see zero plaintext vault codes
+            val vaultId = CryptoUtils.hashVaultCode(vaultCode)
+
             // AES-256 Client-Side Encryption before cloud transmission
             val encryptedTitle = CryptoUtils.encryptAES(title, vaultCode)
             val encryptedMerchant = CryptoUtils.encryptAES(merchant, vaultCode)
@@ -67,7 +71,7 @@ object SupabaseSyncEngine {
 
             val jsonPayload = JSONObject().apply {
                 put("id", id)
-                put("vault_code", vaultCode)
+                put("vault_code", vaultId)
                 put("title", encryptedTitle)
                 put("amount", amount)
                 put("type", "expense")

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { decryptPayload, encryptPayload } from './crypto';
+import { decryptPayload, encryptPayload, hashVaultCode } from './crypto';
 import { INITIAL_CATEGORIES } from './sampleData';
 
 // Supabase Environment Credentials
@@ -9,15 +9,16 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /**
- * Registers or updates a Vault Session in Supabase vault_sessions table
+ * Registers or updates a Vault Session in Supabase using anonymized SHA-256 Vault ID
  */
 export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const encryptedName = encryptPayload(userName, vaultCode);
     const { data, error } = await supabase
       .from('vault_sessions')
       .upsert(
-        { vault_code: vaultCode, user_name: encryptedName, last_active: new Date().toISOString() },
+        { vault_code: vaultId, user_name: encryptedName, last_active: new Date().toISOString() },
         { onConflict: 'vault_code' }
       )
       .select();
@@ -33,14 +34,15 @@ export const registerVaultSessionInCloud = async (vaultCode, userName = 'Anas') 
 };
 
 /**
- * Checks if a Vault Session exists in Supabase vault_sessions table
+ * Checks if a Vault Session exists in Supabase using anonymized SHA-256 Vault ID
  */
 export const verifyVaultSessionInCloud = async (vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const { data, error } = await supabase
       .from('vault_sessions')
       .select('vault_code, user_name')
-      .eq('vault_code', vaultCode)
+      .eq('vault_code', vaultId)
       .maybeSingle();
 
     if (error) {
@@ -60,15 +62,15 @@ export const verifyVaultSessionInCloud = async (vaultCode) => {
 };
 
 /**
- * Fetches categories for a specific Vault Code from Supabase.
- * If none exist in cloud, seeds standard initial categories into Supabase for this vault.
+ * Fetches categories for a specific Vault Code from Supabase using SHA-256 Vault ID.
  */
 export const fetchCloudCategories = async (vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('vault_code', vaultCode);
+      .eq('vault_code', vaultId);
 
     if (error) throw error;
 
@@ -82,10 +84,10 @@ export const fetchCloudCategories = async (vaultCode) => {
       }));
     }
 
-    // Seed initial categories for new vault in Supabase
+    // Seed initial categories for new vault in Supabase under SHA-256 Vault ID
     const seeded = INITIAL_CATEGORIES.map((cat) => ({
-      id: `${cat.id}-${vaultCode}`,
-      vault_code: vaultCode,
+      id: `${cat.id}-${vaultId.substring(0, 8)}`,
+      vault_code: vaultId,
       name: cat.name,
       icon: cat.icon,
       color: cat.color,
@@ -101,14 +103,15 @@ export const fetchCloudCategories = async (vaultCode) => {
 };
 
 /**
- * Updates a Category limit in Supabase cloud
+ * Updates a Category limit in Supabase cloud using SHA-256 Vault ID
  */
 export const updateCloudCategoryLimit = async (categoryId, newLimit, vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     await supabase
       .from('categories')
       .update({ monthly_limit: newLimit })
-      .eq('vault_code', vaultCode)
+      .eq('vault_code', vaultId)
       .ilike('name', categoryId);
   } catch (err) {
     console.error('Error updating category limit in cloud:', err);
@@ -116,7 +119,7 @@ export const updateCloudCategoryLimit = async (categoryId, newLimit, vaultCode) 
 };
 
 /**
- * Safely decrypts a transaction object retrieved from Supabase
+ * Safely decrypts a transaction object retrieved from Supabase using raw Vault Code
  */
 export const decryptTransactionRecord = (tx, vaultCode) => {
   if (!tx) return tx;
@@ -129,14 +132,15 @@ export const decryptTransactionRecord = (tx, vaultCode) => {
 };
 
 /**
- * Fetches all transactions for a specific Vault Code from Supabase and decrypts them
+ * Fetches all transactions for a specific Vault Code from Supabase using SHA-256 Vault ID and decrypts them
  */
 export const fetchCloudTransactions = async (vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('vault_code', vaultCode)
+      .eq('vault_code', vaultId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -149,17 +153,18 @@ export const fetchCloudTransactions = async (vaultCode) => {
 };
 
 /**
- * Inserts a new encrypted transaction into Supabase cloud
+ * Inserts a new encrypted transaction into Supabase cloud using SHA-256 Vault ID
  */
 export const insertCloudTransaction = async (tx, vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const encTitle = encryptPayload(tx.title || 'Expense', vaultCode);
     const encMerchant = encryptPayload(tx.merchant || tx.category || 'UPI Payment', vaultCode);
     const encNotes = encryptPayload(tx.notes || '', vaultCode);
 
     const payload = {
       id: tx.id || `tx_${Date.now()}`,
-      vault_code: vaultCode,
+      vault_code: vaultId,
       title: encTitle,
       merchant: encMerchant,
       amount: Number(tx.amount || 0),
@@ -184,15 +189,16 @@ export const insertCloudTransaction = async (tx, vaultCode) => {
 };
 
 /**
- * Deletes a transaction from Supabase by ID and Vault Code
+ * Deletes a transaction from Supabase by ID and SHA-256 Vault ID
  */
 export const deleteCloudTransaction = async (id, vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const { error } = await supabase
       .from('transactions')
       .delete()
       .eq('id', id)
-      .eq('vault_code', vaultCode);
+      .eq('vault_code', vaultId);
 
     if (error) throw error;
     return true;
@@ -203,14 +209,15 @@ export const deleteCloudTransaction = async (id, vaultCode) => {
 };
 
 /**
- * Deletes all transactions for a specific Vault Code from Supabase
+ * Deletes all transactions for a specific Vault Code from Supabase using SHA-256 Vault ID
  */
 export const clearCloudTransactions = async (vaultCode) => {
   try {
+    const vaultId = hashVaultCode(vaultCode);
     const { error } = await supabase
       .from('transactions')
       .delete()
-      .eq('vault_code', vaultCode);
+      .eq('vault_code', vaultId);
 
     if (error) throw error;
     return true;
@@ -221,18 +228,19 @@ export const clearCloudTransactions = async (vaultCode) => {
 };
 
 /**
- * Subscribes to real-time transaction insertions for live phone-to-web sync
+ * Subscribes to real-time transaction insertions for live phone-to-web sync using SHA-256 Vault ID
  */
 export const subscribeToCloudTransactions = (vaultCode, onNewTx) => {
+  const vaultId = hashVaultCode(vaultCode);
   return supabase
-    .channel(`realtime-transactions-${vaultCode}`)
+    .channel(`realtime-transactions-${vaultId}`)
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
         table: 'transactions',
-        filter: `vault_code=eq.${vaultCode}`
+        filter: `vault_code=eq.${vaultId}`
       },
       (payload) => {
         if (payload && payload.new) {
