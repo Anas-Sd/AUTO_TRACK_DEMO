@@ -12,17 +12,20 @@ import SyncPromptScreen from './components/SyncPromptScreen';
 import MobileBottomNav from './components/MobileBottomNav';
 
 import {
-  getStoredTransactions,
-  saveStoredTransactions,
   getStoredCategories,
   saveStoredCategories,
   getStoredVaultCode,
   saveStoredVaultCode,
-  generateVaultCode,
-  formatCurrency
+  generateVaultCode
 } from './lib/storage';
-import { INITIAL_TRANSACTIONS } from './lib/sampleData';
-import { fetchCloudTransactions, subscribeToCloudTransactions } from './lib/supabase';
+
+import {
+  fetchCloudTransactions,
+  insertCloudTransaction,
+  deleteCloudTransaction,
+  clearCloudTransactions,
+  subscribeToCloudTransactions
+} from './lib/supabase';
 
 export default function App() {
   const [transactions, setTransactions] = useState([]);
@@ -41,32 +44,26 @@ export default function App() {
     }
   }, []);
 
-  // Sync transactions according to active Vault Code
+  // Fetch and sync transactions purely from Supabase Cloud
   useEffect(() => {
     if (!vaultCode) return;
 
-    if (vaultCode === 'SP-894201') {
-      // Demo mode displays sample mock data
-      setTransactions(getStoredTransactions());
-    } else {
-      // Real vault mode fetches cloud transactions from Supabase
-      fetchCloudTransactions(vaultCode).then((cloudTxs) => {
-        setTransactions(cloudTxs || []);
-      });
+    fetchCloudTransactions(vaultCode).then((cloudTxs) => {
+      setTransactions(cloudTxs || []);
+    });
 
-      // Subscribe to real-time payment updates from mobile app
-      const channel = subscribeToCloudTransactions(vaultCode, (newTx) => {
-        setTransactions((prev) => {
-          const exists = prev.some((t) => t.id === newTx.id);
-          if (exists) return prev;
-          return [newTx, ...prev];
-        });
+    // Subscribe to real-time payment updates from mobile app
+    const channel = subscribeToCloudTransactions(vaultCode, (newTx) => {
+      setTransactions((prev) => {
+        const exists = prev.some((t) => t.id === newTx.id);
+        if (exists) return prev;
+        return [newTx, ...prev];
       });
+    });
 
-      return () => {
-        if (channel) channel.unsubscribe();
-      };
-    }
+    return () => {
+      if (channel) channel.unsubscribe();
+    };
   }, [vaultCode]);
 
   const handleChangeVaultCode = (newCode) => {
@@ -91,27 +88,23 @@ export default function App() {
     saveStoredVaultCode(demoCode);
   };
 
-  // Save changes to state & localStorage
-  const handleSaveTransaction = (tx) => {
-    let updated;
-    if (editingTransaction) {
-      updated = transactions.map(t => t.id === tx.id ? tx : t);
+  // Save transaction to Supabase Cloud
+  const handleSaveTransaction = async (tx) => {
+    if (!vaultCode) return;
+    const inserted = await insertCloudTransaction(tx, vaultCode);
+    if (inserted) {
+      setTransactions((prev) => [inserted, ...prev.filter(t => t.id !== inserted.id)]);
     } else {
-      updated = [tx, ...transactions];
-    }
-    setTransactions(updated);
-    if (vaultCode === 'SP-894201') {
-      saveStoredTransactions(updated);
+      setTransactions((prev) => [tx, ...prev]);
     }
     setEditingTransaction(null);
   };
 
-  const handleDeleteTransaction = (id) => {
-    const updated = transactions.filter(t => t.id !== id);
-    setTransactions(updated);
-    if (vaultCode === 'SP-894201') {
-      saveStoredTransactions(updated);
-    }
+  // Delete transaction from Supabase Cloud
+  const handleDeleteTransaction = async (id) => {
+    if (!vaultCode) return;
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    await deleteCloudTransaction(id, vaultCode);
   };
 
   const handleUpdateCategoryLimit = (categoryId, newLimit) => {
@@ -148,12 +141,14 @@ export default function App() {
     return newCat;
   };
 
-  const handleResetData = () => {
-    setTransactions(INITIAL_TRANSACTIONS);
-    saveStoredTransactions(INITIAL_TRANSACTIONS);
+  // Reset transactions in Supabase Cloud
+  const handleResetData = async () => {
+    if (!vaultCode) return;
+    setTransactions([]);
+    await clearCloudTransactions(vaultCode);
   };
 
-  // If phone hasn't been paired yet and demo hasn't been activated, show Sync Prompt Screen
+  // If phone hasn't been paired yet, show Sync Prompt Screen
   if (!vaultCode) {
     return (
       <SyncPromptScreen

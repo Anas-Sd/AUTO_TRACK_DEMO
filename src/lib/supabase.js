@@ -72,7 +72,7 @@ export const decryptTransactionRecord = (tx, vaultCode) => {
 };
 
 /**
- * Fetches all transactions for a specific Vault Code and decrypts them locally
+ * Fetches all transactions for a specific Vault Code from Supabase and decrypts them
  */
 export const fetchCloudTransactions = async (vaultCode) => {
   try {
@@ -88,6 +88,78 @@ export const fetchCloudTransactions = async (vaultCode) => {
   } catch (err) {
     console.error('Error fetching cloud transactions:', err);
     return [];
+  }
+};
+
+/**
+ * Inserts a new encrypted transaction into Supabase cloud
+ */
+export const insertCloudTransaction = async (tx, vaultCode) => {
+  try {
+    const encTitle = encryptPayload(tx.title || 'Expense', vaultCode);
+    const encMerchant = encryptPayload(tx.merchant || tx.category || 'UPI Payment', vaultCode);
+    const encNotes = encryptPayload(tx.notes || '', vaultCode);
+
+    const payload = {
+      id: tx.id || `tx_${Date.now()}`,
+      vault_code: vaultCode,
+      title: encTitle,
+      merchant: encMerchant,
+      amount: Number(tx.amount || 0),
+      type: tx.type || 'expense',
+      category: tx.category || 'Food & Dining',
+      payment_method: tx.payment_method || 'UPI',
+      notes: encNotes,
+      date: tx.date || new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([payload])
+      .select();
+
+    if (error) throw error;
+    return data ? decryptTransactionRecord(data[0], vaultCode) : null;
+  } catch (err) {
+    console.error('Error inserting transaction to cloud:', err);
+    return null;
+  }
+};
+
+/**
+ * Deletes a transaction from Supabase by ID and Vault Code
+ */
+export const deleteCloudTransaction = async (id, vaultCode) => {
+  try {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('vault_code', vaultCode);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting transaction from cloud:', err);
+    return false;
+  }
+};
+
+/**
+ * Deletes all transactions for a specific Vault Code from Supabase
+ */
+export const clearCloudTransactions = async (vaultCode) => {
+  try {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('vault_code', vaultCode);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error clearing cloud transactions:', err);
+    return false;
   }
 };
 
