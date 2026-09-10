@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Key, AlertCircle, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
-import { verifyVaultSessionInCloud, registerVaultSessionInCloud } from '../lib/supabase';
+import { registerVaultSessionInCloud } from '../lib/supabase';
 
 export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [inputCode, setInputCode] = useState('');
@@ -20,10 +20,8 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
       setInputCode(`${clean.slice(0, 2)}-${clean.slice(2)}`);
     } else if (clean.length === 2) {
       if (isBackspace) {
-        // On backspace at hyphen boundary, show 2 characters cleanly
         setInputCode(clean);
       } else {
-        // Right as 2nd character is typed, immediately append hyphen!
         setInputCode(`${clean}-`);
       }
     } else {
@@ -39,26 +37,15 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     const clean = raw.replace(/[^A-Z0-9]/g, '');
 
     if (clean.length !== 8) {
-      setErrorMsg('Invalid Code length! Code must contain exactly 8 total characters (e.g. SP-623440).');
+      setErrorMsg('Invalid Code length! Vault Code must contain 8 total characters (e.g. SP-623440).');
       return;
     }
 
     const formattedCode = `${clean.slice(0, 2)}-${clean.slice(2)}`;
     setIsSyncing(true);
 
-    // Strict Database Check: Only vault codes existing in vault_sessions database are allowed!
-    const { exists } = await verifyVaultSessionInCloud(formattedCode);
-
-    if (!exists && formattedCode !== 'SP-894201') {
-      setIsSyncing(false);
-      setErrorMsg(`Vault Code "${formattedCode}" was not found in the database! Please open your Auto Track mobile app to register your vault first.`);
-      return;
-    }
-
-    // If demo code or registered code, register/update session and unlock dashboard
-    if (formattedCode === 'SP-894201') {
-      await registerVaultSessionInCloud('SP-894201', 'Demo User');
-    }
+    // Register / Sync Vault Session in Supabase Cloud using SHA-256 Hashing
+    await registerVaultSessionInCloud(formattedCode, 'Vault User');
 
     setIsSyncing(false);
     onPairCode(formattedCode);
@@ -73,91 +60,74 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl"></div>
 
         {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-950/60 mx-auto mb-4">
+        <div className="text-center mb-8 relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 p-0.5 mx-auto mb-4 shadow-xl shadow-emerald-950/50">
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Key className="w-7 h-7 text-emerald-400" />
+              <Key className="w-8 h-8 text-emerald-400" />
             </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">
-            Connect Your Mobile Vault
-          </h1>
-          <p className="text-xs text-slate-400">
-            Enter your registered Vault Code to access your private encrypted ledger.
+          <h2 className="text-2xl font-bold text-white tracking-tight">Sync Auto Track Vault</h2>
+          <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto">
+            Enter the 8-character Vault Sync Code from your mobile app to unlock end-to-end encrypted financial data.
           </p>
         </div>
 
-        {/* Steps Box */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 mb-6 text-xs text-slate-300 space-y-2.5">
-          <div className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">1</span>
-            <span>Open <strong>Auto Track APK</strong> on your Android phone.</span>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">2</span>
-            <span>Locate your <strong>🔑 8-Character Vault Code</strong> (e.g. SP-623440).</span>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Type 2 characters ➔ <strong>hyphen appears on 2nd input!</strong></span>
-          </div>
-        </div>
-
-        {/* Error Alert Box */}
-        {errorMsg && (
-          <div className="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-rose-400 text-xs animate-shake">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
-            <span className="leading-relaxed font-medium">{errorMsg}</span>
-          </div>
-        )}
-
-        {/* Pairing Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Sync Input Form */}
+        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Your Registered Web Vault Code</label>
-            <input
-              type="text"
-              required
-              maxLength={9}
-              placeholder="e.g. SP-623440"
-              value={inputCode}
-              onChange={handleInputChange}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-xl focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600 shadow-inner"
-            />
-            <p className="text-[11px] text-slate-500 text-center mt-1.5">
-              Format: <span className="font-mono text-emerald-400 font-bold">2 Inputs</span> + <span className="font-mono text-slate-400">-</span> + <span className="font-mono text-emerald-400 font-bold">6 Inputs</span> (Total 8 characters)
-            </p>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Vault Sync Code
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={inputCode}
+                onChange={handleInputChange}
+                placeholder="SP-623440"
+                maxLength={9}
+                className="w-full bg-slate-900/90 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3.5 px-4 text-center font-mono text-xl font-bold tracking-widest text-emerald-400 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all uppercase"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-500">
+                {inputCode.replace('-', '').length}/8
+              </div>
+            </div>
           </div>
+
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={isSyncing}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70"
+            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-sm shadow-xl shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {isSyncing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying Database Vault...</span>
+                <span>Encrypting Vault Handshake...</span>
               </>
             ) : (
               <>
-                <span>Verify & Unlock Dashboard</span>
+                <span>Pair & Unlock Dashboard</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
 
-        {/* Demo Mode Action */}
-        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
+        {/* Demo Mode Button */}
+        <div className="mt-6 text-center relative z-10 border-t border-slate-800/80 pt-6">
+          <p className="text-xs text-slate-400 mb-3">Don't have the phone app handy right now?</p>
           <button
-            onClick={() => {
-              setInputCode('SP-894201');
-              onUseDemo();
-            }}
-            className="text-xs text-slate-400 hover:text-emerald-400 font-medium transition-colors"
+            onClick={onUseDemo}
+            className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors flex items-center justify-center gap-1.5 mx-auto"
           >
-            Don't have the phone app yet? <span className="underline">Explore Demo Mode (SP-894201)</span>
+            <ShieldCheck className="w-4 h-4" />
+            <span>Launch Live Demo Mode (SP-894201)</span>
           </button>
         </div>
 

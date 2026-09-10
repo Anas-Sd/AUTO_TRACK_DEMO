@@ -50,9 +50,10 @@ class MainActivity : AppCompatActivity() {
         val savedName = sharedPref.getString("USER_NAME", "")
         if (!savedName.isNullOrEmpty()) {
             etUserName.setText(savedName)
-            // Ensure Supabase table has this session registered
-            syncVaultSessionToSupabase()
         }
+
+        // Always sync vault session to Supabase cloud on app open
+        syncVaultSessionToSupabase()
 
         btnStartOnboarding.setOnClickListener {
             val userName = etUserName.text.toString().trim()
