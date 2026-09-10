@@ -12,19 +12,19 @@ import SyncPromptScreen from './components/SyncPromptScreen';
 import MobileBottomNav from './components/MobileBottomNav';
 
 import {
-  getStoredCategories,
-  saveStoredCategories,
   getStoredVaultCode,
   saveStoredVaultCode,
   generateVaultCode
 } from './lib/storage';
 
 import {
+  fetchCloudCategories,
   fetchCloudTransactions,
   insertCloudTransaction,
   deleteCloudTransaction,
   clearCloudTransactions,
-  subscribeToCloudTransactions
+  subscribeToCloudTransactions,
+  updateCloudCategoryLimit
 } from './lib/supabase';
 
 export default function App() {
@@ -37,17 +37,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'ledger' | 'budgets' | 'emis' | 'settings'
 
   useEffect(() => {
-    setCategories(getStoredCategories());
     const storedCode = getStoredVaultCode();
     if (storedCode) {
       setVaultCode(storedCode);
     }
   }, []);
 
-  // Fetch and sync transactions purely from Supabase Cloud
+  // Fetch categories and transactions purely from Supabase Cloud
   useEffect(() => {
     if (!vaultCode) return;
 
+    // Fetch categories directly from Supabase Cloud categories table
+    fetchCloudCategories(vaultCode).then((cloudCats) => {
+      setCategories(cloudCats || []);
+    });
+
+    // Fetch transactions directly from Supabase Cloud transactions table
     fetchCloudTransactions(vaultCode).then((cloudTxs) => {
       setTransactions(cloudTxs || []);
     });
@@ -110,19 +115,19 @@ export default function App() {
   const handleUpdateCategoryLimit = (categoryId, newLimit) => {
     const updated = categories.map(c => c.id === categoryId ? { ...c, monthlyLimit: newLimit } : c);
     setCategories(updated);
-    saveStoredCategories(updated);
+    if (vaultCode) {
+      updateCloudCategoryLimit(categoryId, newLimit, vaultCode);
+    }
   };
 
   const handleEditCategory = (categoryId, updatedCat) => {
     const updated = categories.map(c => c.id === categoryId ? { ...c, ...updatedCat } : c);
     setCategories(updated);
-    saveStoredCategories(updated);
   };
 
   const handleDeleteCategory = (categoryId) => {
     const updated = categories.filter(c => c.id !== categoryId);
     setCategories(updated);
-    saveStoredCategories(updated);
   };
 
   const handleAddNewCategory = (catData) => {
@@ -137,7 +142,6 @@ export default function App() {
     };
     const updated = [...categories, newCat];
     setCategories(updated);
-    saveStoredCategories(updated);
     return newCat;
   };
 

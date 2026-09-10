@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { decryptPayload, encryptPayload } from './crypto';
+import { INITIAL_CATEGORIES } from './sampleData';
 
 // Supabase Environment Credentials
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kdiefrqgmoahpfcstbzc.supabase.co';
@@ -55,6 +56,62 @@ export const verifyVaultSessionInCloud = async (vaultCode) => {
   } catch (err) {
     console.error('Failed to query Supabase vault session:', err);
     return { exists: false, error: err.message };
+  }
+};
+
+/**
+ * Fetches categories for a specific Vault Code from Supabase.
+ * If none exist in cloud, seeds standard initial categories into Supabase for this vault.
+ */
+export const fetchCloudCategories = async (vaultCode) => {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('vault_code', vaultCode);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      return data.map((c) => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon || 'Tag',
+        color: c.color || '#10b981',
+        monthlyLimit: Number(c.monthly_limit || 0)
+      }));
+    }
+
+    // Seed initial categories for new vault in Supabase
+    const seeded = INITIAL_CATEGORIES.map((cat) => ({
+      id: `${cat.id}-${vaultCode}`,
+      vault_code: vaultCode,
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      monthly_limit: cat.monthlyLimit
+    }));
+
+    await supabase.from('categories').insert(seeded);
+    return INITIAL_CATEGORIES;
+  } catch (err) {
+    console.error('Error fetching cloud categories:', err);
+    return INITIAL_CATEGORIES;
+  }
+};
+
+/**
+ * Updates a Category limit in Supabase cloud
+ */
+export const updateCloudCategoryLimit = async (categoryId, newLimit, vaultCode) => {
+  try {
+    await supabase
+      .from('categories')
+      .update({ monthly_limit: newLimit })
+      .eq('vault_code', vaultCode)
+      .ilike('name', categoryId);
+  } catch (err) {
+    console.error('Error updating category limit in cloud:', err);
   }
 };
 
