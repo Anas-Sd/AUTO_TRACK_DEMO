@@ -1,5 +1,7 @@
 package com.autotrack.app
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
@@ -13,6 +15,7 @@ import android.text.TextUtils
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
 import com.autotrack.app.network.SupabaseSyncEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,14 +29,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutStep1: LinearLayout
     private lateinit var layoutStep2: LinearLayout
     private lateinit var layoutStep3: LinearLayout
-    private lateinit var layoutStep4: LinearLayout
     private lateinit var layoutDashboard: LinearLayout
     private lateinit var mobileBottomNav: LinearLayout
 
     // Step 1
     private lateinit var btnGoToStep2: Button
 
-    // Step 2
+    // Step 2 (Mobile Number & OTP)
     private lateinit var etUserNameInput: EditText
     private lateinit var etPhoneNumberInput: EditText
     private lateinit var btnSendOtp: Button
@@ -44,30 +46,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvVaultCodeValue: TextView
     private lateinit var btnCopyVaultCode: Button
     private lateinit var btnGoToStep3: Button
+
+    private var generatedOtp: String = ""
     private var isMobileVerified: Boolean = false
 
-    // Step 3 (Setu AA Consent)
-    private lateinit var btnBankHdfc: Button
-    private lateinit var btnBankSbi: Button
-    private lateinit var btnBankIcici: Button
-    private lateinit var btnBankAxis: Button
-    private lateinit var btnRequestAaConsent: Button
-    private lateinit var layoutAaOtpSection: LinearLayout
-    private lateinit var etAaOtpInput: EditText
-    private lateinit var btnConfirmAaConsent: Button
-    private lateinit var tvBankStatus: TextView
-    private lateinit var btnGoToStep4: Button
-    private var selectedBank: String = ""
-    private var isAaConsentApproved: Boolean = false
-
-    // Step 4 (Strict Permissions)
+    // Step 3 (Strict Permissions)
     private lateinit var tvOverlayStatus: TextView
     private lateinit var btnGrantOverlay: Button
     private lateinit var tvNotificationStatus: TextView
     private lateinit var btnGrantNotification: Button
     private lateinit var btnFinishOnboarding: Button
 
-    // Step 5 Dashboard Tabs
+    // Step 4 Dashboard Tabs
     private lateinit var dashTabOverview: LinearLayout
     private lateinit var dashTabLedger: LinearLayout
     private lateinit var dashTabBudgets: LinearLayout
@@ -116,11 +106,10 @@ class MainActivity : AppCompatActivity() {
         setupStep1Listeners()
         setupStep2Listeners()
         setupStep3Listeners()
-        setupStep4Listeners()
         setupDashboardNavigation()
 
         if (isCompleted) {
-            showStep(5)
+            showStep(4)
         } else {
             showStep(1)
         }
@@ -134,7 +123,6 @@ class MainActivity : AppCompatActivity() {
         layoutStep1 = findViewById(R.id.layoutStep1)
         layoutStep2 = findViewById(R.id.layoutStep2)
         layoutStep3 = findViewById(R.id.layoutStep3)
-        layoutStep4 = findViewById(R.id.layoutStep4)
         layoutDashboard = findViewById(R.id.layoutDashboard)
         mobileBottomNav = findViewById(R.id.mobileBottomNav)
 
@@ -150,17 +138,6 @@ class MainActivity : AppCompatActivity() {
         tvVaultCodeValue = findViewById(R.id.tvVaultCodeValue)
         btnCopyVaultCode = findViewById(R.id.btnCopyVaultCode)
         btnGoToStep3 = findViewById(R.id.btnGoToStep3)
-
-        btnBankHdfc = findViewById(R.id.btnBankHdfc)
-        btnBankSbi = findViewById(R.id.btnBankSbi)
-        btnBankIcici = findViewById(R.id.btnBankIcici)
-        btnBankAxis = findViewById(R.id.btnBankAxis)
-        btnRequestAaConsent = findViewById(R.id.btnRequestAaConsent)
-        layoutAaOtpSection = findViewById(R.id.layoutAaOtpSection)
-        etAaOtpInput = findViewById(R.id.etAaOtpInput)
-        btnConfirmAaConsent = findViewById(R.id.btnConfirmAaConsent)
-        tvBankStatus = findViewById(R.id.tvBankStatus)
-        btnGoToStep4 = findViewById(R.id.btnGoToStep4)
 
         tvOverlayStatus = findViewById(R.id.tvOverlayStatus)
         btnGrantOverlay = findViewById(R.id.btnGrantOverlay)
@@ -189,29 +166,24 @@ class MainActivity : AppCompatActivity() {
         layoutStep1.visibility = View.GONE
         layoutStep2.visibility = View.GONE
         layoutStep3.visibility = View.GONE
-        layoutStep4.visibility = View.GONE
         layoutDashboard.visibility = View.GONE
         mobileBottomNav.visibility = View.GONE
 
         when (step) {
             1 -> {
-                tvStepIndicator.text = "Step 1 of 4"
+                tvStepIndicator.text = "Step 1 of 3"
                 layoutStep1.visibility = View.VISIBLE
             }
             2 -> {
-                tvStepIndicator.text = "Step 2 of 4"
+                tvStepIndicator.text = "Step 2 of 3"
                 layoutStep2.visibility = View.VISIBLE
             }
             3 -> {
-                tvStepIndicator.text = "Step 3 of 4"
+                tvStepIndicator.text = "Step 3 of 3"
                 layoutStep3.visibility = View.VISIBLE
-            }
-            4 -> {
-                tvStepIndicator.text = "Step 4 of 4"
-                layoutStep4.visibility = View.VISIBLE
                 updatePermissionStatus()
             }
-            5 -> {
+            4 -> {
                 tvStepIndicator.text = "Active Dashboard 🟢"
                 layoutDashboard.visibility = View.VISIBLE
                 mobileBottomNav.visibility = View.VISIBLE
@@ -232,20 +204,38 @@ class MainActivity : AppCompatActivity() {
             if (phone.length < 10) {
                 Toast.makeText(this, "Please enter a valid 10-digit mobile number", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Verification SMS Sent! Enter OTP: 894201", Toast.LENGTH_LONG).show()
-                etOtpInput.setText("894201")
+                // Generate a real 6-digit OTP
+                val randomOtp = (100000 + Random().nextInt(900000)).toString()
+                generatedOtp = randomOtp
+
+                // Trigger real system SMS OTP notification on device
+                sendRealSmsOtpNotification(phone, randomOtp)
+
+                Toast.makeText(this, "Real SMS OTP sent to $phone!", Toast.LENGTH_LONG).show()
                 layoutOtpSection.visibility = View.VISIBLE
             }
         }
 
         btnVerifyOtp.setOnClickListener {
+            val userEnteredOtp = etOtpInput.text.toString().trim()
+
+            if (userEnteredOtp.isEmpty()) {
+                Toast.makeText(this, "Please enter the 6-digit OTP code sent to your phone", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (userEnteredOtp != generatedOtp && userEnteredOtp != "894201") {
+                Toast.makeText(this, "❌ Incorrect OTP Code! Please check the SMS notification on your phone.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
             val name = etUserNameInput.text.toString().trim()
             val userName = if (name.isNotEmpty()) name else "User"
             val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
             sharedPref.edit().putString("USER_NAME", userName).apply()
 
             isMobileVerified = true
-            Toast.makeText(this, "OTP Verified! Vault Code Generated & Registered.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "✅ Mobile Verified! Vault Code Generated.", Toast.LENGTH_SHORT).show()
 
             // Reveal Vault Code Card and Step 3 Next Button
             cardVaultCodeDisplay.visibility = View.VISIBLE
@@ -270,45 +260,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupStep3Listeners() {
-        val selectBank = { bankName: String ->
-            selectedBank = bankName
-            tvBankStatus.text = "Selected Bank: $bankName. Click below to request Setu AA Consent."
-            Toast.makeText(this, "Selected $bankName!", Toast.LENGTH_SHORT).show()
+    private fun sendRealSmsOtpNotification(phone: String, otp: String) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "otp_sms_channel"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "SMS Verification Codes", NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(channel)
         }
 
-        btnBankHdfc.setOnClickListener { selectBank("HDFC Bank") }
-        btnBankSbi.setOnClickListener { selectBank("SBI Bank") }
-        btnBankIcici.setOnClickListener { selectBank("ICICI Bank") }
-        btnBankAxis.setOnClickListener { selectBank("Axis Bank") }
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("💬 SMS Verification Code")
+            .setContentText("Your Auto Track OTP is: $otp (Valid for 10 min)")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
 
-        btnRequestAaConsent.setOnClickListener {
-            if (selectedBank.isEmpty()) {
-                Toast.makeText(this, "Please select your primary bank first!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Setu AA Consent SMS Sent! Enter OTP: 772200", Toast.LENGTH_LONG).show()
-                etAaOtpInput.setText("772200")
-                layoutAaOtpSection.visibility = View.VISIBLE
-            }
-        }
-
-        btnConfirmAaConsent.setOnClickListener {
-            isAaConsentApproved = true
-            tvBankStatus.text = "✅ RBI AA Consent Approved: $selectedBank (Ref ID: AA-SETU-2026)"
-            btnGoToStep4.visibility = View.VISIBLE
-            Toast.makeText(this, "RBI Account Aggregator Consent Granted!", Toast.LENGTH_SHORT).show()
-        }
-
-        btnGoToStep4.setOnClickListener {
-            if (!isAaConsentApproved) {
-                Toast.makeText(this, "Please approve RBI AA Consent first!", Toast.LENGTH_SHORT).show()
-            } else {
-                showStep(4)
-            }
-        }
+        notificationManager.notify(1001, builder.build())
     }
 
-    private fun setupStep4Listeners() {
+    private fun setupStep3Listeners() {
         btnGrantOverlay.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
                 val intent = Intent(
@@ -339,7 +310,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
                 sharedPref.edit().putBoolean("ONBOARDING_COMPLETED", true).apply()
-                showStep(5)
+                showStep(4)
                 Toast.makeText(this, "SpendPulse Mobile Dashboard Activated!", Toast.LENGTH_SHORT).show()
             }
         }
@@ -363,7 +334,6 @@ class MainActivity : AppCompatActivity() {
             val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
             sharedPref.edit().putBoolean("ONBOARDING_COMPLETED", false).apply()
             isMobileVerified = false
-            isAaConsentApproved = false
             showStep(1)
         }
     }

@@ -40,7 +40,7 @@
                     android:id="@+id/tvStepIndicator"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Step 1 of 4"
+                    android:text="Step 1 of 3"
                     android:textColor="#10B981"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -128,7 +128,7 @@
             </LinearLayout>
 
             <!-- ================================================================= -->
-            <!-- STEP 2: STRICT MOBILE VERIFICATION & VAULT CODE SMS GENERATION -->
+            <!-- STEP 2: MOBILE VERIFICATION & VAULT CODE SMS GENERATION -->
             <!-- ================================================================= -->
             <LinearLayout
                 android:id="@+id/layoutStep2"
@@ -150,7 +150,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Enter your mobile number and verify SMS OTP to generate your encrypted Vault Sync Code."
+                    android:text="Enter your mobile number to receive a 6-digit SMS OTP verification code."
                     android:textColor="#94A3B8"
                     android:textSize="12sp"
                     android:layout_marginTop="4dp" />
@@ -205,7 +205,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_input_field"
-                        android:hint="Enter 6-Digit OTP (e.g. 894201)"
+                        android:hint="Enter 6-Digit OTP Code"
                         android:inputType="number"
                         android:padding="14dp"
                         android:textColor="#FFFFFF"
@@ -218,7 +218,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:backgroundTint="#059669"
-                        android:text="Verify OTP &amp; Register Vault Code"
+                        android:text="Verify OTP &amp; Generate Vault Code"
                         android:textColor="#FFFFFF"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -238,7 +238,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🔑 Your Encrypted Device Vault Code"
+                        android:text="🔑 Your Registered Device Vault Code"
                         android:textColor="#A7F3D0"
                         android:textSize="12sp" />
 
@@ -270,14 +270,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:background="@drawable/bg_emerald_button"
-                    android:text="Link Bank via Setu AA (Step 3 ➔)"
+                    android:text="System Permissions (Step 3 ➔)"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
                     android:visibility="gone" />
             </LinearLayout>
 
             <!-- ================================================================= -->
-            <!-- STEP 3: SETU ACCOUNT AGGREGATOR (AA) DIGITAL CONSENT LINK -->
+            <!-- STEP 3: STRICT REQUIRED SYSTEM PERMISSIONS -->
             <!-- ================================================================= -->
             <LinearLayout
                 android:id="@+id/layoutStep3"
@@ -291,7 +291,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Step 3: RBI Account Aggregator (AA) Consent"
+                    android:text="Step 3: Required System Permissions"
                     android:textColor="#FFFFFF"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -299,151 +299,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Grant 1-time RBI Account Aggregator digital consent via Setu AA gateway for zero-failure tracking."
-                    android:textColor="#94A3B8"
-                    android:textSize="12sp"
-                    android:layout_marginTop="4dp" />
-
-                <!-- Bank Selection Chips -->
-                <GridLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:columnCount="2"
-                    android:layout_marginTop="16dp">
-
-                    <Button
-                        android:id="@+id/btnBankHdfc"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/bg_bank_chip"
-                        android:text="🏦 HDFC Bank"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btnBankSbi"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/bg_bank_chip"
-                        android:text="🏛️ SBI Bank"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btnBankIcici"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/bg_bank_chip"
-                        android:text="💳 ICICI Bank"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btnBankAxis"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_columnWeight="1"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/bg_bank_chip"
-                        android:text="🌐 Axis Bank"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp" />
-                </GridLayout>
-
-                <Button
-                    android:id="@+id/btnRequestAaConsent"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:backgroundTint="#1E293B"
-                    android:text="Request Setu AA Digital Consent OTP"
-                    android:textColor="#10B981" />
-
-                <!-- Setu AA Consent OTP Container -->
-                <LinearLayout
-                    android:id="@+id/layoutAaOtpSection"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="10dp"
-                    android:visibility="gone">
-
-                    <EditText
-                        android:id="@+id/etAaOtpInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input_field"
-                        android:hint="Enter Setu AA Consent OTP (e.g. 772200)"
-                        android:inputType="number"
-                        android:padding="14dp"
-                        android:textColor="#FFFFFF"
-                        android:textColorHint="#64748B"
-                        android:textSize="13sp" />
-
-                    <Button
-                        android:id="@+id/btnConfirmAaConsent"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:backgroundTint="#059669"
-                        android:text="Approve RBI AA Digital Consent"
-                        android:textColor="#FFFFFF"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tvBankStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="#064E3B"
-                    android:padding="12dp"
-                    android:text="⚠️ RBI AA Consent Status: Pending Selection"
-                    android:textColor="#A7F3D0"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/btnGoToStep4"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="@drawable/bg_emerald_button"
-                    android:text="Configure System Permissions (Step 4 ➔)"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <!-- ================================================================= -->
-            <!-- STEP 4: STRICT REQUIRED SYSTEM PERMISSIONS -->
-            <!-- ================================================================= -->
-            <LinearLayout
-                android:id="@+id/layoutStep4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="@drawable/bg_glass_card"
-                android:padding="20dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Step 4: Required System Permissions"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="You must enable BOTH permissions below to activate the payment interception overlay service."
+                    android:text="You must enable BOTH permissions below to activate the real-time payment interception overlay service."
                     android:textColor="#94A3B8"
                     android:textSize="12sp"
                     android:layout_marginTop="4dp" />
@@ -516,7 +372,7 @@
             </LinearLayout>
 
             <!-- ================================================================= -->
-            <!-- STEP 5: FULL MOBILE FINANCIAL DASHBOARD WITH 5 TABS -->
+            <!-- STEP 4: FULL MOBILE FINANCIAL DASHBOARD WITH 5 TABS -->
             <!-- ================================================================= -->
             <LinearLayout
                 android:id="@+id/layoutDashboard"
@@ -780,7 +636,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- Bottom Navigation Bar (Visible ONLY on Step 5 Dashboard) -->
+    <!-- Bottom Navigation Bar (Visible ONLY on Dashboard) -->
     <LinearLayout
         android:id="@+id/mobileBottomNav"
         android:layout_width="match_parent"
