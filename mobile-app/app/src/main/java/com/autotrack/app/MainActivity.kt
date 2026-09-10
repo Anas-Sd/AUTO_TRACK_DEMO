@@ -13,7 +13,10 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.autotrack.app.service.NotificationInterceptorService
+import com.autotrack.app.network.SupabaseSyncEngine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Random
 
 class MainActivity : AppCompatActivity() {
@@ -40,13 +43,15 @@ class MainActivity : AppCompatActivity() {
         if (existingVaultCode == null) {
             // Generate 6-digit numeric Vault Code for easy web sync
             val randomNum = 100000 + Random().nextInt(900000)
-            val generatedCode = "$randomNum"
+            val generatedCode = "SP-$randomNum"
             sharedPref.edit().putString("VAULT_CODE", generatedCode).apply()
         }
 
         val savedName = sharedPref.getString("USER_NAME", "")
         if (!savedName.isNull_or_empty()) {
             etUserName.setText(savedName)
+            // Ensure Supabase table has this session registered
+            syncVaultSessionToSupabase()
         }
 
         btnStartOnboarding.setOnClickListener {
@@ -55,7 +60,8 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter your name", Toast.LENGTH_SHORT).show()
             } else {
                 sharedPref.edit().putString("USER_NAME", userName).apply()
-                Toast.makeText(this, "Welcome $userName! Vault Code generated.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Welcome $userName! Syncing Vault to Cloud...", Toast.LENGTH_SHORT).show()
+                syncVaultSessionToSupabase()
                 updateStatus()
             }
         }
@@ -85,6 +91,20 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateStatus()
+        syncVaultSessionToSupabase()
+    }
+
+    private fun syncVaultSessionToSupabase() {
+        val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
+        val vaultCode = sharedPref.getString("VAULT_CODE", null)
+        val userName = sharedPref.getString("USER_NAME", "User") ?: "User"
+
+        if (!vaultCode.isNull_or_empty()) {
+            val formattedCode = if (vaultCode.startsWith("SP-")) vaultCode else "SP-$vaultCode"
+            CoroutineScope(Dispatchers.IO).launch {
+                SupabaseSyncEngine.registerVaultSession(formattedCode, userName)
+            }
+        }
     }
 
     private fun isNotificationListenerGranted(): Boolean {
@@ -107,7 +127,8 @@ class MainActivity : AppCompatActivity() {
         val hasNotification = isNotificationListenerGranted()
         val sharedPref = getSharedPreferences("AutoTrackPrefs", Context.MODE_PRIVATE)
         val userName = sharedPref.getString("USER_NAME", "User") ?: "User"
-        val vaultCode = sharedPref.getString("VAULT_CODE", "Not Generated") ?: "Not Generated"
+        val rawVaultCode = sharedPref.getString("VAULT_CODE", "Not Generated") ?: "Not Generated"
+        val vaultCode = if (rawVaultCode.startsWith("SP-")) rawVaultCode else "SP-$rawVaultCode"
 
         val engineStatus = if (hasOverlay && hasNotification) {
             "⚡ STATUS: ACTIVE & RUNNING 🟢\nReady to intercept UPI payments!"

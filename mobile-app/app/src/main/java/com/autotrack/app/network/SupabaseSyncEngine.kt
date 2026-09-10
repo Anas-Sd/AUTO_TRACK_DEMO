@@ -21,6 +21,31 @@ object SupabaseSyncEngine {
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
+    suspend fun registerVaultSession(vaultCode: String, userName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val jsonPayload = JSONObject().apply {
+                put("vault_code", vaultCode)
+                put("user_name", userName)
+            }.toString()
+
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/rest/v1/vault_sessions")
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Prefer", "resolution=merge-duplicates")
+                .post(jsonPayload.toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     suspend fun pushTransaction(
         id: String,
         vaultCode: String,

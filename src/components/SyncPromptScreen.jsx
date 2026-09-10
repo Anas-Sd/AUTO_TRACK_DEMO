@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Key, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Key, AlertCircle, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
+import { registerVaultSessionInCloud } from '../lib/supabase';
 
 export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [inputCode, setInputCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     const raw = inputCode.trim();
@@ -27,6 +29,12 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     }
 
     const formattedCode = `SP-${cleaned}`;
+    setIsSyncing(true);
+    
+    // Sync session to Supabase database
+    await registerVaultSessionInCloud(formattedCode, 'Syed Anas');
+    setIsSyncing(false);
+    
     onPairCode(formattedCode);
   };
 
@@ -85,7 +93,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
               type="text"
               required
               maxLength={9}
-              placeholder="e.g. 593812"
+              placeholder="e.g. 623440"
               value={inputCode}
               onChange={(e) => {
                 setInputCode(e.target.value);
@@ -97,10 +105,20 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
 
           <button
             type="submit"
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            disabled={isSyncing}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70"
           >
-            <span>Unlock My Financial Dashboard</span>
-            <ArrowRight className="w-4 h-4" />
+            {isSyncing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Connecting to Cloud Vault...</span>
+              </>
+            ) : (
+              <>
+                <span>Unlock My Financial Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 
