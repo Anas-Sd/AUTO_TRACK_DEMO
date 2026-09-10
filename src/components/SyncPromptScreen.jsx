@@ -8,28 +8,21 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleInputChange = (e) => {
-    let raw = e.target.value.toUpperCase();
     if (errorMsg) setErrorMsg('');
+    let raw = e.target.value.toUpperCase();
 
-    // Extract letters and numbers separately
-    let letters = raw.replace(/[^A-Z]/g, '').slice(0, 2);
-    let digits = raw.replace(/[^0-9]/g, '').slice(0, 6);
+    // Remove any non-alphanumeric characters (keep max 8 total)
+    let clean = raw.replace(/[^A-Z0-9]/g, '').slice(0, 8);
 
-    // If user started typing digits directly without letters, default letters to "SP"
-    if (letters.length === 0 && digits.length > 0) {
-      letters = 'SP';
-    }
+    // Support smooth backspacing
+    const isBackspace = e.nativeEvent && e.nativeEvent.inputType === 'deleteContentBackward';
 
-    if (letters.length === 0) {
-      setInputCode('');
-    } else if (letters.length === 1) {
-      setInputCode(letters);
-    } else if (letters.length === 2) {
-      if (digits.length > 0) {
-        setInputCode(`${letters}-${digits}`);
-      } else {
-        setInputCode(`${letters}-`);
-      }
+    if (clean.length > 2) {
+      setInputCode(`${clean.slice(0, 2)}-${clean.slice(2)}`);
+    } else if (clean.length === 2 && !isBackspace && raw.endsWith('-')) {
+      setInputCode(`${clean}-`);
+    } else {
+      setInputCode(clean);
     }
   };
 
@@ -38,36 +31,32 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     setErrorMsg('');
     const raw = inputCode.trim();
 
-    if (!raw) {
-      setErrorMsg('Please enter your 8-character Vault Code (e.g. SP-623440).');
+    const clean = raw.replace(/[^A-Z0-9]/g, '');
+
+    if (clean.length !== 8) {
+      setErrorMsg('Invalid Code length! Code must contain exactly 8 total characters (e.g. SP-623440).');
       return;
     }
 
-    // Format validation: Exactly 2 letters, hyphen, 6 digits
-    const pattern = /^[A-Z]{2}-\d{6}$/;
-    if (!pattern.test(raw)) {
-      setErrorMsg('Invalid Vault Code format! Code must be 2 letters followed by a hyphen and 6 numbers (e.g. SP-623440).');
-      return;
-    }
-
+    const formattedCode = `${clean.slice(0, 2)}-${clean.slice(2)}`;
     setIsSyncing(true);
 
     // Strict Database Check: Only vault codes existing in vault_sessions database are allowed!
-    const { exists } = await verifyVaultSessionInCloud(raw);
+    const { exists } = await verifyVaultSessionInCloud(formattedCode);
 
-    if (!exists && raw !== 'SP-894201') {
+    if (!exists && formattedCode !== 'SP-894201') {
       setIsSyncing(false);
-      setErrorMsg(`Vault Code "${raw}" was not found in the database! Please open your Auto Track mobile app to generate & register your vault code first.`);
+      setErrorMsg(`Vault Code "${formattedCode}" was not found in the database! Please open your Auto Track mobile app to register your vault first.`);
       return;
     }
 
     // If demo code or registered code, register/update session and unlock dashboard
-    if (raw === 'SP-894201') {
+    if (formattedCode === 'SP-894201') {
       await registerVaultSessionInCloud('SP-894201', 'Demo User');
     }
 
     setIsSyncing(false);
-    onPairCode(raw);
+    onPairCode(formattedCode);
   };
 
   return (
@@ -105,7 +94,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Type 2 letters (e.g. <strong>SP</strong>) ➔ hyphen is added automatically!</span>
+            <span>Type any 2 characters ➔ hyphen is added automatically!</span>
           </div>
         </div>
 
@@ -131,7 +120,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-xl focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600 shadow-inner"
             />
             <p className="text-[11px] text-slate-500 text-center mt-1.5">
-              Format: <span className="font-mono text-emerald-400 font-bold">2 Letters</span> + <span className="font-mono text-slate-400">-</span> + <span className="font-mono text-emerald-400 font-bold">6 Digits</span>
+              Format: <span className="font-mono text-emerald-400 font-bold">2 Inputs</span> + <span className="font-mono text-slate-400">-</span> + <span className="font-mono text-emerald-400 font-bold">6 Inputs</span> (Total 8 characters)
             </p>
           </div>
 
