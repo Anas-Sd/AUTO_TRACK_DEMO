@@ -1,18 +1,33 @@
 import React, { useState } from 'react';
-import { Key, Smartphone, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Key, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
   const [inputCode, setInputCode] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputCode.trim()) {
-      let formatted = inputCode.trim().toUpperCase();
-      if (!formatted.startsWith('SP-') && /^\d{6}$/.test(formatted)) {
-        formatted = `SP-${formatted}`;
-      }
-      onPairCode(formatted);
+    setErrorMsg('');
+    const raw = inputCode.trim();
+
+    if (!raw) {
+      setErrorMsg('Please enter your phone\'s 6-digit Vault Code.');
+      return;
     }
+
+    let cleaned = raw.toUpperCase().replace(/\s+/g, '');
+    if (cleaned.startsWith('SP-')) {
+      cleaned = cleaned.substring(3);
+    }
+
+    // Validate 6-digit numeric Vault Code
+    if (!/^\d{6}$/.test(cleaned)) {
+      setErrorMsg('Invalid Vault Code! Please enter the exact 6-digit numeric code displayed in your Auto Track mobile app (e.g. 593812).');
+      return;
+    }
+
+    const formattedCode = `SP-${cleaned}`;
+    onPairCode(formattedCode);
   };
 
   return (
@@ -34,7 +49,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             Connect Your Mobile Vault
           </h1>
           <p className="text-xs text-slate-400">
-            No signup or password required. Pair with your phone's unique sync code.
+            No password needed. Enter the 6-digit Vault Code shown in your phone app.
           </p>
         </div>
 
@@ -46,13 +61,21 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">2</span>
-            <span>Go to <strong>Settings</strong> &rarr; <strong>Web Sync Category</strong>.</span>
+            <span>Locate your <strong>🔑 6-Digit Web Vault Sync Code</strong>.</span>
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Enter the 6-digit code shown in your phone below.</span>
+            <span>Enter the code below to unlock your dashboard.</span>
           </div>
         </div>
+
+        {/* Error Alert Box */}
+        {errorMsg && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2 text-rose-400 text-xs animate-shake">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         {/* Pairing Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,9 +84,13 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             <input
               type="text"
               required
-              placeholder="e.g. SP-755019"
+              maxLength={9}
+              placeholder="e.g. 593812"
               value={inputCode}
-              onChange={(e) => setInputCode(e.target.value)}
+              onChange={(e) => {
+                setInputCode(e.target.value);
+                if (errorMsg) setErrorMsg('');
+              }}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white uppercase tracking-widest font-mono text-center font-bold text-lg focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-600"
             />
           </div>
@@ -83,7 +110,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
             onClick={onUseDemo}
             className="text-xs text-slate-400 hover:text-emerald-400 font-medium transition-colors"
           >
-            Don't have the phone app yet? <span className="underline">Explore Demo Mode</span>
+            Don't have the phone app yet? <span className="underline">Explore Demo Mode (SP-894201)</span>
           </button>
         </div>
 

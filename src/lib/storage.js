@@ -23,7 +23,11 @@ export const getStoredVaultCode = () => {
 
 export const saveStoredVaultCode = (code) => {
   try {
-    localStorage.setItem(STORAGE_KEYS.VAULT_CODE, code);
+    if (code) {
+      localStorage.setItem(STORAGE_KEYS.VAULT_CODE, code);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.VAULT_CODE);
+    }
   } catch (e) {
     console.error('Error saving vault code', e);
   }
