@@ -24,7 +24,9 @@ import {
   deleteCloudTransaction,
   clearCloudTransactions,
   subscribeToCloudTransactions,
-  updateCloudCategoryLimit
+  updateCloudCategoryLimit,
+  insertCloudCategory,
+  deleteCloudCategory
 } from './lib/supabase';
 
 export default function App() {
@@ -128,6 +130,9 @@ export default function App() {
   const handleDeleteCategory = (categoryId) => {
     const updated = categories.filter(c => c.id !== categoryId);
     setCategories(updated);
+    if (vaultCode) {
+      deleteCloudCategory(categoryId, vaultCode);
+    }
   };
 
   const handleAddNewCategory = (catData) => {
@@ -142,6 +147,9 @@ export default function App() {
     };
     const updated = [...categories, newCat];
     setCategories(updated);
+    if (vaultCode) {
+      insertCloudCategory(newCat, vaultCode);
+    }
     return newCat;
   };
 

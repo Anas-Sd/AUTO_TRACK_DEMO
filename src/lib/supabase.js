@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { decryptPayload, encryptPayload, hashVaultCode } from './crypto';
-import { INITIAL_CATEGORIES } from './sampleData';
 
 // Supabase Environment Credentials
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kdiefrqgmoahpfcstbzc.supabase.co';
@@ -50,11 +49,7 @@ export const verifyVaultSessionInCloud = async (vaultCode) => {
       return { exists: false, error: error.message };
     }
 
-    if (data) {
-      return { exists: true, session: data };
-    } else {
-      return { exists: false };
-    }
+    return { exists: Boolean(data), session: data };
   } catch (err) {
     console.error('Failed to query Supabase vault session:', err);
     return { exists: false, error: err.message };
@@ -62,7 +57,8 @@ export const verifyVaultSessionInCloud = async (vaultCode) => {
 };
 
 /**
- * Fetches categories for a specific Vault Code from Supabase using SHA-256 Vault ID.
+ * Fetches categories strictly for a specific Vault Code from Supabase.
+ * Returns empty array [] initially if user hasn't created any categories yet.
  */
 export const fetchCloudCategories = async (vaultCode) => {
   try {
@@ -84,21 +80,39 @@ export const fetchCloudCategories = async (vaultCode) => {
       }));
     }
 
-    // Seed initial categories for new vault in Supabase under SHA-256 Vault ID
-    const seeded = INITIAL_CATEGORIES.map((cat) => ({
-      id: `${cat.id}-${vaultId.substring(0, 8)}`,
-      vault_code: vaultId,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      monthly_limit: cat.monthlyLimit
-    }));
-
-    await supabase.from('categories').insert(seeded);
-    return INITIAL_CATEGORIES;
+    // 100% Zero-Data Policy: Return empty array initially until user adds categories!
+    return [];
   } catch (err) {
     console.error('Error fetching cloud categories:', err);
-    return INITIAL_CATEGORIES;
+    return [];
+  }
+};
+
+/**
+ * Inserts a new user category directly into Supabase cloud
+ */
+export const insertCloudCategory = async (category, vaultCode) => {
+  try {
+    const vaultId = hashVaultCode(vaultCode);
+    const payload = {
+      id: category.id || `cat_${Date.now()}`,
+      vault_code: vaultId,
+      name: category.name,
+      icon: category.icon || 'Tag',
+      color: category.color || '#10b981',
+      monthly_limit: Number(category.monthlyLimit || 5000)
+    };
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([payload])
+      .select();
+
+    if (error) throw error;
+    return data ? data[0] : null;
+  } catch (err) {
+    console.error('Error inserting category to cloud:', err);
+    return null;
   }
 };
 
@@ -119,6 +133,22 @@ export const updateCloudCategoryLimit = async (categoryId, newLimit, vaultCode) 
 };
 
 /**
+ * Deletes a category from Supabase cloud
+ */
+export const deleteCloudCategory = async (categoryId, vaultCode) => {
+  try {
+    const vaultId = hashVaultCode(vaultCode);
+    await supabase
+      .from('categories')
+      .delete()
+      .eq('vault_code', vaultId)
+      .eq('id', categoryId);
+  } catch (err) {
+    console.error('Error deleting category from cloud:', err);
+  }
+};
+
+/**
  * Safely decrypts a transaction object retrieved from Supabase using raw Vault Code
  */
 export const decryptTransactionRecord = (tx, vaultCode) => {
@@ -132,7 +162,7 @@ export const decryptTransactionRecord = (tx, vaultCode) => {
 };
 
 /**
- * Fetches all transactions for a specific Vault Code from Supabase using SHA-256 Vault ID and decrypts them
+ * Fetches all transactions for a specific Vault Code strictly from Supabase
  */
 export const fetchCloudTransactions = async (vaultCode) => {
   try {
@@ -153,7 +183,7 @@ export const fetchCloudTransactions = async (vaultCode) => {
 };
 
 /**
- * Inserts a new encrypted transaction into Supabase cloud using SHA-256 Vault ID
+ * Inserts a new encrypted transaction into Supabase cloud
  */
 export const insertCloudTransaction = async (tx, vaultCode) => {
   try {
