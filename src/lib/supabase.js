@@ -90,3 +90,27 @@ export const fetchCloudTransactions = async (vaultCode) => {
     return [];
   }
 };
+
+/**
+ * Subscribes to real-time transaction insertions for live phone-to-web sync
+ */
+export const subscribeToCloudTransactions = (vaultCode, onNewTx) => {
+  return supabase
+    .channel(`realtime-transactions-${vaultCode}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'transactions',
+        filter: `vault_code=eq.${vaultCode}`
+      },
+      (payload) => {
+        if (payload && payload.new) {
+          const decrypted = decryptTransactionRecord(payload.new, vaultCode);
+          onNewTx(decrypted);
+        }
+      }
+    )
+    .subscribe();
+};

@@ -22,6 +22,7 @@ import {
   formatCurrency
 } from './lib/storage';
 import { INITIAL_TRANSACTIONS } from './lib/sampleData';
+import { fetchCloudTransactions, subscribeToCloudTransactions } from './lib/supabase';
 
 export default function App() {
   const [transactions, setTransactions] = useState([]);
@@ -33,13 +34,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'ledger' | 'budgets' | 'emis' | 'settings'
 
   useEffect(() => {
-    setTransactions(getStoredTransactions());
     setCategories(getStoredCategories());
     const storedCode = getStoredVaultCode();
     if (storedCode) {
       setVaultCode(storedCode);
     }
   }, []);
+
+  // Sync transactions according to active Vault Code
+  useEffect(() => {
+    if (!vaultCode) return;
+
+    if (vaultCode === 'SP-894201') {
+      // Demo mode displays sample mock data
+      setTransactions(getStoredTransactions());
+    } else {
+      // Real vault mode fetches cloud transactions from Supabase
+      fetchCloudTransactions(vaultCode).then((cloudTxs) => {
+        setTransactions(cloudTxs || []);
+      });
+
+      // Subscribe to real-time payment updates from mobile app
+      const channel = subscribeToCloudTransactions(vaultCode, (newTx) => {
+        setTransactions((prev) => {
+          const exists = prev.some((t) => t.id === newTx.id);
+          if (exists) return prev;
+          return [newTx, ...prev];
+        });
+      });
+
+      return () => {
+        if (channel) channel.unsubscribe();
+      };
+    }
+  }, [vaultCode]);
 
   const handleChangeVaultCode = (newCode) => {
     setVaultCode(newCode);
@@ -63,7 +91,7 @@ export default function App() {
     saveStoredVaultCode(demoCode);
   };
 
-  // Save changes to localStorage
+  // Save changes to state & localStorage
   const handleSaveTransaction = (tx) => {
     let updated;
     if (editingTransaction) {
@@ -72,14 +100,18 @@ export default function App() {
       updated = [tx, ...transactions];
     }
     setTransactions(updated);
-    saveStoredTransactions(updated);
+    if (vaultCode === 'SP-894201') {
+      saveStoredTransactions(updated);
+    }
     setEditingTransaction(null);
   };
 
   const handleDeleteTransaction = (id) => {
     const updated = transactions.filter(t => t.id !== id);
     setTransactions(updated);
-    saveStoredTransactions(updated);
+    if (vaultCode === 'SP-894201') {
+      saveStoredTransactions(updated);
+    }
   };
 
   const handleUpdateCategoryLimit = (categoryId, newLimit) => {
@@ -132,112 +164,105 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white animate-fadeIn ${
-      activeTab === 'ledger' || activeTab === 'budgets' ? 'h-screen h-[100dvh] overflow-hidden' : ''
-    }`}>
+    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white pb-20 md:pb-0">
       
-      {/* Fixed Navigation Header */}
+      {/* Top Navigation Header */}
       <Header
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        vaultCode={vaultCode}
+        onOpenVaultModal={() => setIsVaultModalOpen(true)}
         onOpenAddModal={() => {
           setEditingTransaction(null);
           setIsAddModalOpen(true);
         }}
-        onOpenSettings={() => setActiveTab('settings')}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        transactionCount={transactions.length}
-        vaultCode={vaultCode}
         onLogout={handleLogout}
       />
 
       {/* Main Container */}
-      <main className={`flex-1 max-w-7xl w-full mx-auto px-3 sm:px-8 pt-16 sm:pt-20 ${
-        activeTab === 'ledger' || activeTab === 'budgets' ? 'pb-20 sm:pb-3 flex flex-col min-h-0 overflow-hidden' : 'pb-12'
-      }`}>
-
-        {/* Global Summary Stats (Only when not in settings or EMIs) */}
-        {activeTab !== 'settings' && activeTab !== 'emis' && (
-          <StatsCards transactions={transactions} categories={categories} />
-        )}
-
-        {/* Tab Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
-          <AnalyticsCharts transactions={transactions} categories={categories} />
+          <>
+            <StatsCards transactions={transactions} />
+            <AnalyticsCharts transactions={transactions} categories={categories} />
+          </>
         )}
 
+        {/* TAB 2: LEDGER */}
         {activeTab === 'ledger' && (
           <TransactionLedger
             transactions={transactions}
             categories={categories}
-            onDeleteTransaction={handleDeleteTransaction}
-            onEditTransaction={(tx) => {
+            onEdit={(tx) => {
               setEditingTransaction(tx);
+              setIsAddModalOpen(true);
+            }}
+            onDelete={handleDeleteTransaction}
+            onOpenAddModal={() => {
+              setEditingTransaction(null);
               setIsAddModalOpen(true);
             }}
           />
         )}
 
+        {/* TAB 3: BUDGETS */}
         {activeTab === 'budgets' && (
           <BudgetManager
             categories={categories}
             transactions={transactions}
-            onAddCategory={handleAddNewCategory}
+            onUpdateLimit={handleUpdateCategoryLimit}
             onEditCategory={handleEditCategory}
             onDeleteCategory={handleDeleteCategory}
-            onUpdateCategoryLimit={handleUpdateCategoryLimit}
+            onAddCategory={handleAddNewCategory}
           />
         )}
 
+        {/* TAB 4: EMIS & LOANS */}
         {activeTab === 'emis' && (
           <EMILoanTracker />
         )}
 
+        {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (
           <SettingsManager
             vaultCode={vaultCode}
-            onChangeVaultCode={handleChangeVaultCode}
-            onGenerateNewCode={handleGenerateNewVaultCode}
+            onGenerateNewVaultCode={handleGenerateNewVaultCode}
             onResetData={handleResetData}
-            transactionCount={transactions.length}
-            categoryCount={categories.length}
+            transactionsCount={transactions.length}
+            categoriesCount={categories.length}
           />
         )}
-
       </main>
 
-      {/* Floating Bottom-Right Navigation Button for Mobile View */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenAddModal={() => {
-          setEditingTransaction(null);
-          setIsAddModalOpen(true);
-        }}
-        transactionCount={transactions.length}
-        onLogout={handleLogout}
-      />
-
-      {/* Footer (Hidden when in Ledger or Budgets tab to prevent page scroll) */}
-      <footer className={`border-t border-slate-900 bg-slate-950/60 py-6 px-4 text-center text-xs text-slate-500 ${
-        activeTab === 'ledger' || activeTab === 'budgets' ? 'hidden' : ''
-      }`}>
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Auto Track — Smart Automatic Expense Tracker</span>
-          <span className="text-slate-600">Vault Code Sync • Zero Signup Required</span>
-        </div>
-      </footer>
+      {/* Mobile Bottom Bar Navigation */}
+      <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Add / Edit Transaction Modal */}
-      <AddTransactionModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingTransaction(null);
-        }}
-        onSave={handleSaveTransaction}
-        categories={categories}
-        editingTransaction={editingTransaction}
-      />
+      {isAddModalOpen && (
+        <AddTransactionModal
+          isOpen={isAddModalOpen}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingTransaction(null);
+          }}
+          onSave={handleSaveTransaction}
+          categories={categories}
+          editingTransaction={editingTransaction}
+          onAddCategory={handleAddNewCategory}
+        />
+      )}
+
+      {/* Vault Code Sync Status Modal */}
+      {isVaultModalOpen && (
+        <VaultModal
+          isOpen={isVaultModalOpen}
+          onClose={() => setIsVaultModalOpen(false)}
+          vaultCode={vaultCode}
+          onChangeCode={handleChangeVaultCode}
+        />
+      )}
 
     </div>
   );
