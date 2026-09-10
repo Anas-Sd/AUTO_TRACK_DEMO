@@ -171,6 +171,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         vaultCode={vaultCode}
+        transactionCount={transactions.length}
         onOpenVaultModal={() => setIsVaultModalOpen(true)}
         onOpenAddModal={() => {
           setEditingTransaction(null);
@@ -180,7 +181,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 space-y-6">
         
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (

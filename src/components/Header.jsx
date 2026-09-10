@@ -6,7 +6,7 @@ export default function Header({
   onOpenSettings,
   activeTab,
   setActiveTab,
-  transactionCount,
+  transactionCount = 0,
   vaultCode,
   userName = "Anas",
   onLogout
@@ -60,7 +60,7 @@ export default function Header({
             }`}
           >
             <Receipt className="w-3.5 h-3.5" />
-            <span>Ledger ({transactionCount})</span>
+            <span>Ledger ({transactionCount ?? 0})</span>
           </button>
 
           <button
@@ -101,35 +101,35 @@ export default function Header({
           </button>
         </div>
 
-        {/* Desktop Action Controls */}
-        <div className="flex items-center gap-2">
-          {/* Active Vault Session Badge & Logout Button */}
+        {/* Right Actions: Vault Badge, Logout & Add Button */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Vault Badge */}
           {vaultCode && (
-            <div className="hidden sm:flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5">
-              <span className="text-[10px] font-bold text-emerald-400 tracking-wide flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                {userName}'s Vault
-              </span>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-rose-400 font-semibold transition-colors border-l border-slate-800 pl-2"
-                title="Logout & Lock Vault"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Log Out</span>
-              </button>
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-emerald-400 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{userName}'s Vault</span>
             </div>
           )}
 
-          {/* Add Expense Button (Desktop Only) */}
+          {/* Logout Button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all"
+              title="Logout Vault"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Log Out</span>
+            </button>
+          )}
+
+          {/* Add Transaction Primary CTA */}
           <button
-            type="button"
             onClick={onOpenAddModal}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 transition-all duration-200 active:scale-[0.98]"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-950/60 flex items-center gap-1.5 transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Log Transaction</span>
+            <Plus className="w-4 h-4" />
+            <span className="hidden xs:inline">Log Transaction</span>
           </button>
         </div>
 
