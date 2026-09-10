@@ -14,13 +14,18 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
     // Remove any non-alphanumeric characters (keep max 8 total)
     let clean = raw.replace(/[^A-Z0-9]/g, '').slice(0, 8);
 
-    // Support smooth backspacing
     const isBackspace = e.nativeEvent && e.nativeEvent.inputType === 'deleteContentBackward';
 
     if (clean.length > 2) {
       setInputCode(`${clean.slice(0, 2)}-${clean.slice(2)}`);
-    } else if (clean.length === 2 && !isBackspace && raw.endsWith('-')) {
-      setInputCode(`${clean}-`);
+    } else if (clean.length === 2) {
+      if (isBackspace) {
+        // On backspace at hyphen boundary, show 2 characters cleanly
+        setInputCode(clean);
+      } else {
+        // Right as 2nd character is typed, immediately append hyphen!
+        setInputCode(`${clean}-`);
+      }
     } else {
       setInputCode(clean);
     }
@@ -94,7 +99,7 @@ export default function SyncPromptScreen({ onPairCode, onUseDemo }) {
           </div>
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
-            <span>Type any 2 characters ➔ hyphen is added automatically!</span>
+            <span>Type 2 characters ➔ <strong>hyphen appears on 2nd input!</strong></span>
           </div>
         </div>
 
